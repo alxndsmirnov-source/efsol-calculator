@@ -489,12 +489,12 @@
     const saving  = worst.total - best.total;
 
     // ── Рендер ───────────────────────────────────────────────────────────
-    renderResults(regimes, best, saving, is_ip);
+    renderResults(regimes, best, saving, is_ip, has_workers);
     document.getElementById('results').style.display = 'block';
     document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function renderResults(regimes, best, saving, is_ip) {
+  function renderResults(regimes, best, saving, is_ip, has_workers) {
     // Winner banner
     document.getElementById('winner-title').textContent =
       `Выгоднее всего: ${best.label}`;
