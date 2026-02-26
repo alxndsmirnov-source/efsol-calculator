@@ -590,16 +590,31 @@
     document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  // ── Безопасный доступ к DOM-элементам ───────────────────────────────────
+  // Защита от краша если элемент был удалён из HTML
+  function safeEl(id) {
+    const el = document.getElementById(id);
+    if (!el) console.warn(`[calculator] элемент #${id} не найден в DOM — пропускаю`);
+    return el;
+  }
+
+  function safeSetText(id, text) {
+    const el = safeEl(id);
+    if (el) el.textContent = text;
+  }
+
+  function safeSetHTML(id, html) {
+    const el = safeEl(id);
+    if (el) el.innerHTML = html;
+  }
+
   function renderResults(regimes, best, saving, is_ip, has_workers) {
     // Winner banner
-    document.getElementById('winner-title').textContent =
-      `Выгоднее всего: ${best.label}`;
-    document.getElementById('winner-subtitle').textContent =
-      `Экономия до ${Math.round(saving).toLocaleString('ru-RU')} ₽ по сравнению с самым дорогим вариантом`;
+    safeSetText('winner-title',    `Выгоднее всего: ${best.label}`);
+    safeSetText('winner-subtitle', `Экономия до ${Math.round(saving).toLocaleString('ru-RU')} ₽ по сравнению с самым дорогим вариантом`);
 
     // Cards
-    const cardsEl = document.getElementById('cards');
-    cardsEl.innerHTML = regimes.map(r => {
+    safeSetHTML('cards', regimes.map(r => {
       const isBest = r === best;
       return `
         <div class="card ${isBest ? 'best' : ''}">
@@ -615,43 +630,7 @@
             <div class="row sub"><span>— травматизм</span><span class="val">${fmt(r.travmatizm)}</span></div>
           </div>
         </div>`;
-    }).join('');
-
-    // Comparison table
-    const bestIdx = regimes.indexOf(best);
-    const headers = regimes.map((r, i) =>
-      `<th class="${i === bestIdx ? 'best-col' : ''}">${r.short}</th>`
-    ).join('');
-
-    const rows = [
-      { label: 'НДС', key: 'nds' },
-      { label: 'Налог', key: 'tax' },
-      { label: 'Взносы — итого', key: 'vznosy' },
-      { label: '↳ ИП (фикс. + 1%)', key: 'ip' },
-      { label: '↳ За работников', key: 'workers' },
-      { label: '↳ Травматизм', key: 'travmatizm' },
-    ];
-
-    const bodyRows = rows.map(row => {
-      const cells = regimes.map((r, i) => {
-        const val = r[row.key];
-        const cls = i === bestIdx ? 'best-col' : '';
-        return `<td class="${cls}">${val ? fmt(val) : '—'}</td>`;
-      }).join('');
-      return `<tr><td>${row.label}</td>${cells}</tr>`;
-    }).join('');
-
-    const totalCells = regimes.map((r, i) => {
-      const cls = i === bestIdx ? 'best-col' : '';
-      return `<td class="${cls}">${fmt(r.total)}</td>`;
-    }).join('');
-
-    document.getElementById('compare-table').innerHTML = `
-      <thead><tr><th>Показатель</th>${headers}</tr></thead>
-      <tbody>
-        ${bodyRows}
-        <tr class="total-row"><td>ИТОГО нагрузка</td>${totalCells}</tr>
-      </tbody>`;
+    }).join(''));
 
     // Notes
     const notes = [];
@@ -659,7 +638,7 @@
     if (!has_workers) notes.push('* ФОТ = 0: взносы на травматизм не начисляются.');
     if (regimes.some(r => r.nds > 0)) notes.push('* НДС 5% рассчитан как включённый в выручку (применяется при доходах свыше 20 млн ₽).');
     notes.push('* Расчёт по ставкам 2025 года. Проконсультируйтесь с бухгалтером для точной оценки.');
-    document.getElementById('note').textContent = notes.join(' ');
+    safeSetText('note', notes.join(' '));
   }
 
   // Авторасчёт по Enter
