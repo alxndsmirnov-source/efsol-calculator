@@ -146,6 +146,18 @@
 
     .btn-calc:hover { opacity: .85; }
 
+    .calc-error {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px solid #f2b8b5;
+      border-radius: 4px;
+      background: #fff1f0;
+      color: #9f1a14;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
     /* ── Results ── */
     #results { display: none; }
 
@@ -401,6 +413,7 @@
       </div>
     </div>
     <button class="btn-calc" onclick="calculate()">Рассчитать</button>
+    <p class="calc-error" id="calc-error"></p>
   </div>
 
   <!-- Results -->
@@ -471,123 +484,146 @@
 
   // ── Расчёт ───────────────────────────────────────────────────────────────
   function calculate() {
-    const revenue  = parseNum(document.getElementById('income').value);
-    const expenses = parseNum(document.getElementById('expenses').value);
-    const fot      = parseNum(document.getElementById('fot').value);
-    const trav_pct = parseNum(document.getElementById('travmatizm').value);
-    const is_ip    = document.querySelector('input[name="org"]:checked').value === 'ip';
+    clearCalcError();
 
-    if (!revenue) { alert('Введите доходы'); return; }
+    try {
+      const incomeEl = safeEl('income');
+      const expensesEl = safeEl('expenses');
+      const fotEl = safeEl('fot');
+      const travmatizmEl = safeEl('travmatizm');
+      const orgEl = document.querySelector('input[name="org"]:checked');
 
-    const travmatizm_usn = fot * trav_pct / 100;
-    const workers_vznosy = fot * C.workers_rate;
-    const has_workers    = fot > 0;
+      if (!incomeEl || !expensesEl || !fotEl || !travmatizmEl || !orgEl) {
+        throw new Error('Не найдены обязательные поля формы');
+      }
 
-    // ── НДС (5%, считается при выручке > 20 млн) ────────────────────────
-    const nds           = revenue > 20_000_000 ? revenue * C.nds_rate : 0;
-    const revenue_ex    = revenue - nds;  // Доходы без НДС
+      const revenue  = parseNum(incomeEl.value);
+      const expenses = parseNum(expensesEl.value);
+      const fot      = parseNum(fotEl.value);
+      const trav_pct = parseNum(travmatizmEl.value);
+      const is_ip    = orgEl.value === 'ip';
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // АУСН — Доходы
-    // ═══════════════════════════════════════════════════════════════════════
-    const ausn_d = (() => {
-      const tax        = revenue * C.ausn_d_rate;
-      const travmatizm = has_workers ? C.ausn_travmatizm : 0;
-      return {
-        label:    'АУСН (Доходы)',
-        short:    'АУСН (Доходы)',
-        nds:      0,
-        tax,
-        ip:       0,
-        workers:  0,
-        travmatizm,
-        vznosy:   travmatizm,
-        total:    tax + travmatizm,
-      };
-    })();
+      if (!revenue) {
+        showCalcError('Введите доходы больше 0, чтобы выполнить расчёт.');
+        return;
+      }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // АУСН — Доходы минус Расходы
-    // ═══════════════════════════════════════════════════════════════════════
-    const ausn_dmr = (() => {
-      const net        = revenue - expenses;
-      const tax_base   = net > 0 ? net * C.ausn_dmr_rate : 0;
-      const min_tax    = revenue * C.ausn_min_rate;
-      const tax        = Math.max(tax_base, min_tax);
-      const travmatizm = has_workers ? C.ausn_travmatizm : 0;
-      return {
-        label:    'АУСН (Доходы − Расходы)',
-        short:    'АУСН (Доходы − Расходы)',
-        nds:      0,
-        tax,
-        ip:       0,
-        workers:  0,
-        travmatizm,
-        vznosy:   travmatizm,
-        total:    tax + travmatizm,
-      };
-    })();
+      const travmatizm_usn = fot * trav_pct / 100;
+      const workers_vznosy = fot * C.workers_rate;
+      const has_workers    = fot > 0;
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // УСН — Доходы
-    // ═══════════════════════════════════════════════════════════════════════
-    const usn_d = (() => {
-      // 1% взнос ИП — на Доходы без НДС
-      const ip       = is_ip ? calcIPVznosy(revenue_ex) : 0;
-      const vznosy   = ip + workers_vznosy + travmatizm_usn;
-      const tax_raw  = revenue_ex * C.usn_d_rate;
-      // Уменьшение налога на взносы: 50% если есть работники, 100% если нет
-      const max_ded  = has_workers ? tax_raw * 0.5 : tax_raw;
-      const deduction = Math.min(max_ded, vznosy);
-      const tax      = Math.max(0, tax_raw - deduction);
-      return {
-        label:    'УСН (Доходы)',
-        short:    'УСН (Доходы)',
-        nds,
-        tax,
-        ip,
-        workers:  workers_vznosy,
-        travmatizm: travmatizm_usn,
-        vznosy,
-        total:    nds + tax + vznosy,
-      };
-    })();
+      // ── НДС (5%, считается при выручке > 20 млн) ────────────────────────
+      const nds           = revenue > 20_000_000 ? revenue * C.nds_rate : 0;
+      const revenue_ex    = revenue - nds;  // Доходы без НДС
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // УСН — Доходы минус Расходы
-    // ═══════════════════════════════════════════════════════════════════════
-    const usn_dmr = (() => {
-      // 1% взнос ИП — на (Доходы − Расходы) если положительные
-      const net_for_ip = Math.max(0, revenue_ex - expenses);
-      const ip         = is_ip ? calcIPVznosy(net_for_ip) : 0;
-      const vznosy     = ip + workers_vznosy + travmatizm_usn;
-      const net        = revenue_ex - expenses;
-      const min_tax    = revenue_ex * C.usn_min_rate;
-      const tax_base   = net > 0 ? net * C.usn_dmr_rate : 0;
-      const tax        = Math.max(tax_base, min_tax);
-      return {
-        label:    'УСН (Доходы − Расходы)',
-        short:    'УСН (Доходы − Расходы)',
-        nds,
-        tax,
-        ip,
-        workers:  workers_vznosy,
-        travmatizm: travmatizm_usn,
-        vznosy,
-        total:    nds + tax + vznosy,
-      };
-    })();
+      // ═══════════════════════════════════════════════════════════════════════
+      // АУСН — Доходы
+      // ═══════════════════════════════════════════════════════════════════════
+      const ausn_d = (() => {
+        const tax        = revenue * C.ausn_d_rate;
+        const travmatizm = has_workers ? C.ausn_travmatizm : 0;
+        return {
+          label:    'АУСН (Доходы)',
+          short:    'АУСН (Доходы)',
+          nds:      0,
+          tax,
+          ip:       0,
+          workers:  0,
+          travmatizm,
+          vznosy:   travmatizm,
+          total:    tax + travmatizm,
+        };
+      })();
 
-    // ── Определяем победителя ─────────────────────────────────────────────
-    const regimes = [ausn_d, ausn_dmr, usn_d, usn_dmr];
-    const best    = regimes.reduce((a, b) => a.total < b.total ? a : b);
-    const worst   = regimes.reduce((a, b) => a.total > b.total ? a : b);
-    const saving  = worst.total - best.total;
+      // ═══════════════════════════════════════════════════════════════════════
+      // АУСН — Доходы минус Расходы
+      // ═══════════════════════════════════════════════════════════════════════
+      const ausn_dmr = (() => {
+        const net        = revenue - expenses;
+        const tax_base   = net > 0 ? net * C.ausn_dmr_rate : 0;
+        const min_tax    = revenue * C.ausn_min_rate;
+        const tax        = Math.max(tax_base, min_tax);
+        const travmatizm = has_workers ? C.ausn_travmatizm : 0;
+        return {
+          label:    'АУСН (Доходы − Расходы)',
+          short:    'АУСН (Доходы − Расходы)',
+          nds:      0,
+          tax,
+          ip:       0,
+          workers:  0,
+          travmatizm,
+          vznosy:   travmatizm,
+          total:    tax + travmatizm,
+        };
+      })();
 
-    // ── Рендер ───────────────────────────────────────────────────────────
-    renderResults(regimes, best, saving, is_ip, has_workers);
-    document.getElementById('results').style.display = 'block';
-    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // ═══════════════════════════════════════════════════════════════════════
+      // УСН — Доходы
+      // ═══════════════════════════════════════════════════════════════════════
+      const usn_d = (() => {
+        // 1% взнос ИП — на Доходы без НДС
+        const ip       = is_ip ? calcIPVznosy(revenue_ex) : 0;
+        const vznosy   = ip + workers_vznosy + travmatizm_usn;
+        const tax_raw  = revenue_ex * C.usn_d_rate;
+        // Уменьшение налога на взносы: 50% если есть работники, 100% если нет
+        const max_ded  = has_workers ? tax_raw * 0.5 : tax_raw;
+        const deduction = Math.min(max_ded, vznosy);
+        const tax      = Math.max(0, tax_raw - deduction);
+        return {
+          label:    'УСН (Доходы)',
+          short:    'УСН (Доходы)',
+          nds,
+          tax,
+          ip,
+          workers:  workers_vznosy,
+          travmatizm: travmatizm_usn,
+          vznosy,
+          total:    nds + tax + vznosy,
+        };
+      })();
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // УСН — Доходы минус Расходы
+      // ═══════════════════════════════════════════════════════════════════════
+      const usn_dmr = (() => {
+        // 1% взнос ИП — на (Доходы − Расходы) если положительные
+        const net_for_ip = Math.max(0, revenue_ex - expenses);
+        const ip         = is_ip ? calcIPVznosy(net_for_ip) : 0;
+        const vznosy     = ip + workers_vznosy + travmatizm_usn;
+        const net        = revenue_ex - expenses;
+        const min_tax    = revenue_ex * C.usn_min_rate;
+        const tax_base   = net > 0 ? net * C.usn_dmr_rate : 0;
+        const tax        = Math.max(tax_base, min_tax);
+        return {
+          label:    'УСН (Доходы − Расходы)',
+          short:    'УСН (Доходы − Расходы)',
+          nds,
+          tax,
+          ip,
+          workers:  workers_vznosy,
+          travmatizm: travmatizm_usn,
+          vznosy,
+          total:    nds + tax + vznosy,
+        };
+      })();
+
+      // ── Определяем победителя ─────────────────────────────────────────────
+      const regimes = [ausn_d, ausn_dmr, usn_d, usn_dmr];
+      const best    = regimes.reduce((a, b) => a.total < b.total ? a : b);
+      const worst   = regimes.reduce((a, b) => a.total > b.total ? a : b);
+      const saving  = worst.total - best.total;
+
+      // ── Рендер ───────────────────────────────────────────────────────────
+      renderResults(regimes, best, saving, is_ip, has_workers);
+      const resultsEl = safeEl('results');
+      if (resultsEl) {
+        resultsEl.style.display = 'block';
+        resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } catch (error) {
+      console.error('[calculator] ошибка расчёта:', error);
+      showCalcError('Не удалось выполнить расчёт. Обновите страницу и попробуйте снова. Если ошибка повторяется — напишите нам в Telegram.');
+    }
   }
 
   // ── Безопасный доступ к DOM-элементам ───────────────────────────────────
@@ -606,6 +642,20 @@
   function safeSetHTML(id, html) {
     const el = safeEl(id);
     if (el) el.innerHTML = html;
+  }
+
+  function showCalcError(message) {
+    const errorEl = safeEl('calc-error');
+    if (!errorEl) return;
+    errorEl.textContent = message;
+    errorEl.style.display = 'block';
+  }
+
+  function clearCalcError() {
+    const errorEl = safeEl('calc-error');
+    if (!errorEl) return;
+    errorEl.textContent = '';
+    errorEl.style.display = 'none';
   }
 
   function renderResults(regimes, best, saving, is_ip, has_workers) {
