@@ -28,18 +28,9 @@
       font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
       background: var(--brand-gray);
       color: var(--brand-black);
-      padding: 0 0 48px;
+      padding: 32px 0 48px;
       font-size: 15px;
     }
-
-    /* ── Header ── */
-    .site-header {
-      background: var(--brand-black);
-      padding: 16px 24px;
-      margin-bottom: 32px;
-    }
-
-    .site-header img { height: 32px; display: block; }
 
     .wrap {
       max-width: 980px;
@@ -316,20 +307,64 @@
     }
 
     .note {
-      margin-top: 20px;
+      margin-top: 16px;
       font-size: 12px;
       color: var(--brand-muted);
       line-height: 1.7;
     }
+
+    /* ── CTA Block ── */
+    .cta-block {
+      margin-top: 8px;
+    }
+
+    .cta-inner {
+      background: var(--brand-black);
+      border-radius: 4px;
+      padding: 28px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .cta-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--brand-yellow);
+      margin-bottom: 8px;
+    }
+
+    .cta-desc {
+      font-size: 14px;
+      color: rgba(255,255,255,.75);
+      max-width: 480px;
+      line-height: 1.6;
+    }
+
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--brand-yellow);
+      color: var(--brand-black);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 14px 28px;
+      border-radius: 4px;
+      white-space: nowrap;
+      transition: opacity .15s;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      flex-shrink: 0;
+    }
+
+    .cta-btn:hover { opacity: .85; }
   </style>
 </head>
 <body>
-
-<header class="site-header">
-  <a href="https://efsol.ru">
-    <img src="https://efsol.ru/wp-content/uploads/2024/01/logo-main-1.svg" alt="EFSOL" />
-  </a>
-</header>
 
 <div class="wrap">
   <h1>Сравнение налоговых режимов</h1>
@@ -380,12 +415,19 @@
 
     <div class="cards" id="cards"></div>
 
-    <div class="compare-section">
-      <h3>Детальное сравнение</h3>
-      <table class="compare-table" id="compare-table"></table>
+    <div class="cta-block" id="cta-block">
+      <div class="cta-inner">
+        <div class="cta-text">
+          <div class="cta-title">Хотите детальный расчёт?</div>
+          <div class="cta-desc">Получите персональный анализ и рекомендацию специалиста с учётом всех нюансов вашего бизнеса — бесплатно</div>
+        </div>
+        <a class="cta-btn" href="https://t.me/asmirnof" target="_blank">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.92c-.12.56-.44.7-.9.44l-2.48-1.83-1.2 1.15c-.13.13-.24.24-.5.24l.18-2.52 4.6-4.16c.2-.18-.04-.28-.3-.1L7.74 14.1l-2.44-.76c-.53-.17-.54-.53.11-.78l9.54-3.68c.44-.16.82.11.69.92z" fill="currentColor"/></svg>
+          Написать в Telegram
+        </a>
+      </div>
+      <p class="note" id="note"></p>
     </div>
-
-    <p class="note" id="note"></p>
   </div>
 </div>
 
@@ -441,8 +483,8 @@
     const workers_vznosy = fot * C.workers_rate;
     const has_workers    = fot > 0;
 
-    // ── НДС (5%, всегда включён в выручку для УСН) ──────────────────────
-    const nds           = revenue * C.nds_rate;
+    // ── НДС (5%, считается при выручке > 20 млн) ────────────────────────
+    const nds           = revenue > 20_000_000 ? revenue * C.nds_rate : 0;
     const revenue_ex    = revenue - nds;  // Доходы без НДС
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -453,7 +495,7 @@
       const travmatizm = has_workers ? C.ausn_travmatizm : 0;
       return {
         label:    'АУСН (Доходы)',
-        short:    'АУСН Д',
+        short:    'АУСН (Доходы)',
         nds:      0,
         tax,
         ip:       0,
@@ -475,7 +517,7 @@
       const travmatizm = has_workers ? C.ausn_travmatizm : 0;
       return {
         label:    'АУСН (Доходы − Расходы)',
-        short:    'АУСН ДмР',
+        short:    'АУСН (Доходы − Расходы)',
         nds:      0,
         tax,
         ip:       0,
@@ -500,7 +542,7 @@
       const tax      = Math.max(0, tax_raw - deduction);
       return {
         label:    'УСН (Доходы)',
-        short:    'УСН Д',
+        short:    'УСН (Доходы)',
         nds,
         tax,
         ip,
@@ -525,7 +567,7 @@
       const tax        = Math.max(tax_base, min_tax);
       return {
         label:    'УСН (Доходы − Расходы)',
-        short:    'УСН ДмР',
+        short:    'УСН (Доходы − Расходы)',
         nds,
         tax,
         ip,
@@ -615,7 +657,7 @@
     const notes = [];
     if (!is_ip) notes.push('* Для ООО взносы ИП «за себя» не применяются.');
     if (!has_workers) notes.push('* ФОТ = 0: взносы на травматизм не начисляются.');
-    notes.push('* НДС 5% рассчитан как включённый в выручку (для плательщиков НДС на УСН).');
+    if (regimes.some(r => r.nds > 0)) notes.push('* НДС 5% рассчитан как включённый в выручку (применяется при доходах свыше 20 млн ₽).');
     notes.push('* Расчёт по ставкам 2025 года. Проконсультируйтесь с бухгалтером для точной оценки.');
     document.getElementById('note').textContent = notes.join(' ');
   }
