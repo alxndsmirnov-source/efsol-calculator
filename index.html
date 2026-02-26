@@ -348,7 +348,6 @@
     usn_min_rate:        0.01,   // Минимальный налог УСН ДмР
 
     nds_rate:            5/105,  // НДС 5% включён в выручку (для плательщиков НДС на УСН)
-    nds_threshold:       60e6,   // Порог для НДС — 60 млн ₽
 
     workers_rate:        0.30,   // Взносы за работников 30%
     ip_fixed:            57390,  // Фиксированные взносы ИП 2025
@@ -388,17 +387,16 @@
     const workers_vznosy = fot * C.workers_rate;
     const has_workers    = fot > 0;
 
-    // ── НДС (применяется если доходы > порога) ──────────────────────────
-    const has_nds       = revenue > C.nds_threshold;
-    const nds           = has_nds ? revenue * C.nds_rate : 0;
+    // ── НДС (5%, всегда включён в выручку для УСН) ──────────────────────
+    const nds           = revenue * C.nds_rate;
     const revenue_ex    = revenue - nds;  // Доходы без НДС
 
     // ═══════════════════════════════════════════════════════════════════════
     // АУСН — Доходы
     // ═══════════════════════════════════════════════════════════════════════
     const ausn_d = (() => {
-      const tax       = revenue * C.ausn_d_rate;
-      const travmatizm = C.ausn_travmatizm;
+      const tax        = revenue * C.ausn_d_rate;
+      const travmatizm = has_workers ? C.ausn_travmatizm : 0;
       return {
         label:    'АУСН (Доходы)',
         short:    'АУСН Д',
@@ -420,7 +418,7 @@
       const tax_base   = net > 0 ? net * C.ausn_dmr_rate : 0;
       const min_tax    = revenue * C.ausn_min_rate;
       const tax        = Math.max(tax_base, min_tax);
-      const travmatizm = C.ausn_travmatizm;
+      const travmatizm = has_workers ? C.ausn_travmatizm : 0;
       return {
         label:    'АУСН (Доходы − Расходы)',
         short:    'АУСН ДмР',
@@ -561,8 +559,9 @@
 
     // Notes
     const notes = [];
-    if (!has_nds) notes.push('* Доходы ≤ 60 млн ₽ — освобождение от НДС на УСН. НДС не начислен.');
     if (!is_ip) notes.push('* Для ООО взносы ИП «за себя» не применяются.');
+    if (!has_workers) notes.push('* ФОТ = 0: взносы на травматизм не начисляются.');
+    notes.push('* НДС 5% рассчитан как включённый в выручку (для плательщиков НДС на УСН).');
     notes.push('* Расчёт по ставкам 2025 года. Проконсультируйтесь с бухгалтером для точной оценки.');
     document.getElementById('note').textContent = notes.join(' ');
   }
