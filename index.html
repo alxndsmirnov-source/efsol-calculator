@@ -388,19 +388,19 @@
     <div class="fields">
       <div class="field">
         <label>Доходы за год, ₽</label>
-        <input type="text" id="income" placeholder="38 000 000" value="38000000" />
+        <input type="text" id="income" placeholder="38 000 000" />
       </div>
       <div class="field">
         <label>Расходы за год, ₽</label>
-        <input type="text" id="expenses" placeholder="39 000 000" value="39000000" />
+        <input type="text" id="expenses" placeholder="39 000 000" />
       </div>
       <div class="field">
         <label>ФОТ (фонд оплаты труда), ₽</label>
-        <input type="text" id="fot" placeholder="126 000" value="126000" />
+        <input type="text" id="fot" placeholder="126 000" />
       </div>
       <div class="field">
         <label>Ставка на травматизм, %</label>
-        <input type="text" id="travmatizm" placeholder="0.2" value="0.2" />
+        <input type="text" id="travmatizm" placeholder="0.2" />
       </div>
       <div class="field">
         <label>Форма организации</label>
@@ -699,8 +699,7 @@
     if (e.key === 'Enter') calculate();
   });
 
-  // Первичный расчёт при загрузке
-  window.addEventListener('load', calculate);
+  // Первичный расчёт отключён: пользователь вводит данные вручную
 </script>
 
 </body>
