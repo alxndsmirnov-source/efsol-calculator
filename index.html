@@ -539,11 +539,12 @@
       // АУСН — Доходы минус Расходы
       // ═══════════════════════════════════════════════════════════════════════
       const ausn_dmr = (() => {
-        const net        = revenue - expenses;
+        const travmatizm = has_workers ? C.ausn_travmatizm : 0;
+        const expense_for_tax = expenses + (has_workers ? travmatizm : 0);
+        const net        = revenue - expense_for_tax;
         const tax_base   = net > 0 ? net * C.ausn_dmr_rate : 0;
         const min_tax    = revenue * C.ausn_min_rate;
         const tax        = Math.max(tax_base, min_tax);
-        const travmatizm = has_workers ? C.ausn_travmatizm : 0;
         return {
           label:    'АУСН (Доходы − Расходы)',
           short:    'АУСН (Доходы − Расходы)',
@@ -590,7 +591,8 @@
         const net_for_ip = Math.max(0, revenue_ex - expenses);
         const ip         = is_ip ? calcIPVznosy(net_for_ip) : 0;
         const vznosy     = ip + workers_vznosy + travmatizm_usn;
-        const net        = revenue_ex - expenses;
+        const expense_for_tax = expenses + (has_workers ? vznosy : 0);
+        const net        = revenue_ex - expense_for_tax;
         const min_tax    = revenue_ex * C.usn_min_rate;
         const tax_base   = net > 0 ? net * C.usn_dmr_rate : 0;
         const tax        = Math.max(tax_base, min_tax);
@@ -686,6 +688,7 @@
     const notes = [];
     if (!is_ip) notes.push('* Для ООО взносы ИП «за себя» не применяются.');
     if (!has_workers) notes.push('* ФОТ = 0: взносы на травматизм не начисляются.');
+    if (has_workers) notes.push('* В режимах «Доходы − Расходы» взносы учтены в расходной части.');
     if (regimes.some(r => r.nds > 0)) notes.push('* НДС 5% рассчитан как включённый в выручку (применяется при доходах свыше 20 млн ₽).');
     notes.push('* Расчёт по ставкам 2025 года. Проконсультируйтесь с бухгалтером для точной оценки.');
     safeSetText('note', notes.join(' '));
